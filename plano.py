@@ -12,7 +12,7 @@ class MundoSimulacion:
         
         # 1. Cargar Suelo y Mapa
         self.suelo = p.loadURDF("plane.urdf")
-        #self.laberinto = p.loadURDF("MAPA.urdf", [0, 0, 0], useFixedBase=True)
+        self.laberinto = p.loadURDF("MAPA.urdf", [0, 0, 0], useFixedBase=True)
         
         # 2. Cargar el robot
         self.robot = p.loadURDF("r2d2.urdf", [1, 1, 0.5]) 
