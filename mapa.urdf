@@ -1,0 +1,22 @@
+<?xml version="1.0" ?>
+<robot name="mapa_solidworks">
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <mesh filename="MAPA.stl" scale="1 1 1"/>
+      </geometry>
+      <material name="color_muro">
+        <color rgba="0.7 0.7 0.7 1"/> </material>
+    </visual>
+    
+    <collision>
+      <geometry>
+        <mesh filename="MAPA.stl" scale="1 1 1"/>
+      </geometry>
+    </collision>
+    
+    <inertial>
+      <mass value="0"/> <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+    </inertial>
+  </link>
+</robot>
