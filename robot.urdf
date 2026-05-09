@@ -3,15 +3,20 @@
 
   <link name="chasis">
     <visual>
-      <geometry><box size="0.4 0.3 0.08"/></geometry>
+      <geometry><box size="0.35 0.30 0.06"/></geometry>
       <material name="azul"><color rgba="0 0.2 0.8 1"/></material>
     </visual>
     <collision>
-      <geometry><box size="0.4 0.3 0.08"/></geometry>
+      <geometry><box size="0.35 0.30 0.06"/></geometry>
     </collision>
     <inertial>
-      <mass value="3.0"/>
-      <inertia ixx="0.1" ixy="0" ixz="0" iyy="0.1" iyz="0" izz="0.1"/>
+      <mass value="4.0"/>
+      <!-- Centro de masa bajado al fondo del chasis para mayor estabilidad -->
+      <origin xyz="0 0 -0.025"/>
+      <!-- Inercia aumentada en roll/pitch para resistir volcado -->
+      <inertia ixx="0.25" ixy="0" ixz="0"
+               iyy="0.25" iyz="0"
+               izz="0.15"/>
     </inertial>
   </link>
 
@@ -19,22 +24,26 @@
   <link name="rueda_di">
     <visual>
       <origin rpy="1.5708 0 0"/>
-      <geometry><cylinder radius="0.07" length="0.05"/></geometry>
+      <geometry><cylinder radius="0.055" length="0.04"/></geometry>
       <material name="negro"><color rgba="0.1 0.1 0.1 1"/></material>
     </visual>
     <collision>
       <origin rpy="1.5708 0 0"/>
-      <geometry><cylinder radius="0.07" length="0.05"/></geometry>
+      <geometry><cylinder radius="0.055" length="0.04"/></geometry>
     </collision>
     <inertial>
       <mass value="0.5"/>
-      <inertia ixx="0.002" ixy="0" ixz="0" iyy="0.002" iyz="0" izz="0.002"/>
+      <inertia ixx="0.0008" ixy="0" ixz="0"
+               iyy="0.0008" iyz="0"
+               izz="0.0008"/>
     </inertial>
   </link>
   <joint name="joint_rueda_di" type="continuous">
     <parent link="chasis"/>
     <child link="rueda_di"/>
-    <origin xyz="0.15 0.175 -0.01"/>
+    <!-- z=-0.005: rueda queda justo a nivel del borde inferior del chasis -->
+    <!-- spawn_z=0.06 -> fondo rueda = 0.06 + (-0.005) - 0.055 = 0.0 (toca suelo exacto) -->
+    <origin xyz="0.13 0.17 -0.005"/>
     <axis xyz="0 1 0"/>
   </joint>
 
@@ -42,22 +51,24 @@
   <link name="rueda_dd">
     <visual>
       <origin rpy="1.5708 0 0"/>
-      <geometry><cylinder radius="0.07" length="0.05"/></geometry>
+      <geometry><cylinder radius="0.055" length="0.04"/></geometry>
       <material name="negro"><color rgba="0.1 0.1 0.1 1"/></material>
     </visual>
     <collision>
       <origin rpy="1.5708 0 0"/>
-      <geometry><cylinder radius="0.07" length="0.05"/></geometry>
+      <geometry><cylinder radius="0.055" length="0.04"/></geometry>
     </collision>
     <inertial>
       <mass value="0.5"/>
-      <inertia ixx="0.002" ixy="0" ixz="0" iyy="0.002" iyz="0" izz="0.002"/>
+      <inertia ixx="0.0008" ixy="0" ixz="0"
+               iyy="0.0008" iyz="0"
+               izz="0.0008"/>
     </inertial>
   </link>
   <joint name="joint_rueda_dd" type="continuous">
     <parent link="chasis"/>
     <child link="rueda_dd"/>
-    <origin xyz="0.15 -0.175 -0.01"/>
+    <origin xyz="0.13 -0.17 -0.005"/>
     <axis xyz="0 1 0"/>
   </joint>
 
@@ -65,22 +76,24 @@
   <link name="rueda_ti">
     <visual>
       <origin rpy="1.5708 0 0"/>
-      <geometry><cylinder radius="0.07" length="0.05"/></geometry>
+      <geometry><cylinder radius="0.055" length="0.04"/></geometry>
       <material name="negro"><color rgba="0.1 0.1 0.1 1"/></material>
     </visual>
     <collision>
       <origin rpy="1.5708 0 0"/>
-      <geometry><cylinder radius="0.07" length="0.05"/></geometry>
+      <geometry><cylinder radius="0.055" length="0.04"/></geometry>
     </collision>
     <inertial>
       <mass value="0.5"/>
-      <inertia ixx="0.002" ixy="0" ixz="0" iyy="0.002" iyz="0" izz="0.002"/>
+      <inertia ixx="0.0008" ixy="0" ixz="0"
+               iyy="0.0008" iyz="0"
+               izz="0.0008"/>
     </inertial>
   </link>
   <joint name="joint_rueda_ti" type="continuous">
     <parent link="chasis"/>
     <child link="rueda_ti"/>
-    <origin xyz="-0.15 0.175 -0.01"/>
+    <origin xyz="-0.13 0.17 -0.005"/>
     <axis xyz="0 1 0"/>
   </joint>
 
@@ -88,22 +101,24 @@
   <link name="rueda_td">
     <visual>
       <origin rpy="1.5708 0 0"/>
-      <geometry><cylinder radius="0.07" length="0.05"/></geometry>
+      <geometry><cylinder radius="0.055" length="0.04"/></geometry>
       <material name="negro"><color rgba="0.1 0.1 0.1 1"/></material>
     </visual>
     <collision>
       <origin rpy="1.5708 0 0"/>
-      <geometry><cylinder radius="0.07" length="0.05"/></geometry>
+      <geometry><cylinder radius="0.055" length="0.04"/></geometry>
     </collision>
     <inertial>
       <mass value="0.5"/>
-      <inertia ixx="0.002" ixy="0" ixz="0" iyy="0.002" iyz="0" izz="0.002"/>
+      <inertia ixx="0.0008" ixy="0" ixz="0"
+               iyy="0.0008" iyz="0"
+               izz="0.0008"/>
     </inertial>
   </link>
   <joint name="joint_rueda_td" type="continuous">
     <parent link="chasis"/>
     <child link="rueda_td"/>
-    <origin xyz="-0.15 -0.175 -0.01"/>
+    <origin xyz="-0.13 -0.17 -0.005"/>
     <axis xyz="0 1 0"/>
   </joint>
 

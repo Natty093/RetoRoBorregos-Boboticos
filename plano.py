@@ -3,23 +3,8 @@ import pybullet_data
 import time
 import math
  
-# Cajas de pared extraídas directamente del STL (pos_x, pos_y, pos_z, size_x, size_y, size_z)
-# Coordenadas ya en sistema PyBullet (con rotación +pi/2 aplicada)
-WALL_BOXES = [
-    (6.2064,-5.3193,0.2500,1.7503,0.1500,0.5000),
-    (8.0567,-4.6193,0.2500,1.7503,0.1500,0.5000),
-    (8.9318,-4.9693,0.2500,0.1500,0.7000,0.5000),
-    (8.0567,-5.3193,0.2500,1.7503,0.1500,0.5000),
-    (0.8271,-3.1189,0.2500,1.3541,0.1500,0.5000),
-    (1.5042,-3.4689,0.2500,0.1500,0.7000,0.5000),
-    (0.8271,-3.8189,0.2500,1.3541,0.1500,0.5000),
-    (2.5300,-3.1189,0.2500,1.8517,0.1500,0.5000),
-    (3.4058,-3.4689,0.2500,0.1500,0.7000,0.5000),
-    (2.5300,-3.8189,0.2500,1.8517,0.1500,0.5000),
-    (4.3561,-3.1189,0.2500,1.7503,0.1500,0.5000),
-    (5.2312,-3.4689,0.2500,0.1500,0.7000,0.5000),
-]
- 
+# Cajas de colision extraidas directamente del STL real (MAPA.STL)
+
  
 class MundoSimulacion:
     def __init__(self):
@@ -28,16 +13,16 @@ class MundoSimulacion:
         p.setGravity(0, 0, -9.81)
  
         p.resetDebugVisualizerCamera(
-            cameraDistance=2,
-            cameraYaw=45,
-            cameraPitch=-35,
+            cameraDistance=12,
+            cameraYaw=0,
+            cameraPitch=-60,
             cameraTargetPosition=[5.15, -5.15, 0]
         )
  
         # Suelo
         self.suelo = p.loadURDF("plane.urdf", [0, 0, 0])
  
-        # Mapa visual (STL) - solo para que se vea bonito, sin colisión
+        # Mapa visual (STL) - sin colision
         orientacion_mapa = p.getQuaternionFromEuler([math.pi / 2, 0, 0])
         self.laberinto = p.loadURDF(
             "mapa.urdf",
@@ -47,97 +32,95 @@ class MundoSimulacion:
             globalScaling=0.001,
             flags=p.URDF_ENABLE_CACHED_GRAPHICS_SHAPES
         )
-        # Deshabilitar colisión del STL completamente (usamos cajas)
-        # linkIndex=0 es el base_link del URDF de un solo link
         p.setCollisionFilterGroupMask(self.laberinto, -1, 0, 0)
  
-        # Paredes como cajas individuales (colisión exacta)
-        self.paredes = []
-        color_pared = [0.6, 0.6, 0.6, 1]
-        for bx, by, bz, sx, sy, sz in WALL_BOXES:
-            col = p.createCollisionShape(p.GEOM_BOX,
-                                         halfExtents=[sx/2, sy/2, sz/2])
-            vis = p.createVisualShape(p.GEOM_BOX,
-                                      halfExtents=[sx/2, sy/2, sz/2],
-                                      rgbaColor=color_pared)
-            wall_id = p.createMultiBody(baseMass=0,
-                                        baseCollisionShapeIndex=col,
-                                        baseVisualShapeIndex=vis,
-                                        basePosition=[bx, by, bz])
-            self.paredes.append(wall_id)
+        # Paredes como cajas
+     
+        # Robot
+        # spawn_z=0.06: fondo rueda = 0.06 + (-0.005) - 0.055 = 0.0 (toca suelo exacto)
+        self.robot = p.loadURDF("robot.urdf", [3.2, -9.2, 0.06])
  
-        # Robot en el centro del laberinto
-        self.robot = p.loadURDF("robot.urdf", [5.2, -5.2, 0.12])
- 
-        # Liberar joints y dar friccion a ruedas
+        # Dinamica: fuerza reducida (30N), damping alto, friccion alta
         for j in range(p.getNumJoints(self.robot)):
             p.setJointMotorControl2(self.robot, j, p.VELOCITY_CONTROL, force=0)
             p.changeDynamics(self.robot, j,
-                             lateralFriction=2.0,
-                             spinningFriction=0.001,
-                             rollingFriction=0.001)
+                             lateralFriction=2.5,
+                             spinningFriction=0.002,
+                             rollingFriction=0.002)
+ 
+        # Chasis: damping muy alto para evitar volcado
         p.changeDynamics(self.robot, -1,
                          lateralFriction=0.1,
-                         linearDamping=0.1,
-                         angularDamping=0.5)
+                         linearDamping=0.8,
+                         angularDamping=0.9999)
  
         self.ruedas_izq = [0, 2]
         self.ruedas_der = [1, 3]
         self.lidar_ids = []
  
         print("Asentando robot...")
-        for _ in range(200):
+        for _ in range(300):
             p.stepSimulation()
         print("Iniciando navegacion autonoma!")
  
     # ------------------------------------------------------------------
     def simular_lidar(self):
         num_rayos = 9
-        rango_max = 3.0
+        rango_max = 1.5
  
         pos_robot, ori_robot = p.getBasePositionAndOrientation(self.robot)
  
-        # CORRECCIÓN: getMatrixFromQuaternion devuelve matriz 3x3 en row-major:
-        # [m0 m1 m2]   <- vector X local (frente del robot en PyBullet)
-        # [m3 m4 m5]   <- vector Y local
-        # [m6 m7 m8]   <- vector Z local
-        # El vector "adelante" en XY es la primera fila: (m[0], m[1])
+        # --- FIX 1: detectar inclinacion excesiva ---
+        # Extraer angulo de roll y pitch del quaternion
+        euler = p.getEulerFromQuaternion(ori_robot)
+        roll  = abs(euler[0])
+        pitch = abs(euler[1])
+        inclinado = (roll > math.radians(25) or pitch > math.radians(25))
+ 
         m = p.getMatrixFromQuaternion(ori_robot)
-        frente_x = m[0]  # componente X del eje X local del robot
-        frente_y = m[1]  # componente Y del eje X local del robot  ← antes era m[3] (error)
+        frente_x = m[0]
+        frente_y = m[1]
  
-        # La altura del láser debe estar dentro del rango vertical de las cajas.
-        # Las cajas tienen bz=0.25 y sz=0.5 → van de z=0 a z=0.5
-        # Usamos z=0.15 para que el rayo siempre cruce las paredes
-        altura_laser = 0.15
-        origen = [pos_robot[0], pos_robot[1], altura_laser]
+        # --- FIX 2: normalizar vector frente ---
+        frente_len = math.sqrt(frente_x**2 + frente_y**2)
+        if frente_len > 1e-6:
+            frente_x /= frente_len
+            frente_y /= frente_len
  
-        for lid in self.lidar_ids:
-            p.removeUserDebugItem(lid)
+        # --- FIX 3: altura laser FIJA en 0.10m sobre el suelo ---
+        # (no depende de pos_robot[2] para que no falle al inclinarse)
+        altura_laser = 0.10
+ 
+        # Borrar rayos anteriores
+        p.removeAllUserDebugItems()
         self.lidar_ids.clear()
  
+        OFFSET = 0.22
         rayos_inicio, rayos_fin = [], []
         for i in range(num_rayos):
-            # Barre 180° centrado en el frente del robot (-90° a +90°)
             angulo = (math.pi / (num_rayos - 1)) * i - (math.pi / 2)
-            # Rotar el vector frente por el ángulo dado
             rx = frente_x * math.cos(angulo) - frente_y * math.sin(angulo)
             ry = frente_x * math.sin(angulo) + frente_y * math.cos(angulo)
-            rayos_inicio.append(origen)
-            rayos_fin.append([
-                pos_robot[0] + rx * rango_max,
-                pos_robot[1] + ry * rango_max,
-                altura_laser
-            ])
+            inicio = [pos_robot[0] + rx * OFFSET, pos_robot[1] + ry * OFFSET, altura_laser]
+            fin    = [pos_robot[0] + rx * rango_max, pos_robot[1] + ry * rango_max, altura_laser]
+            rayos_inicio.append(inicio)
+            rayos_fin.append(fin)
  
         resultados = p.rayTestBatch(rayos_inicio, rayos_fin)
-        # res[2] es la fracción del recorrido (0.0-1.0) donde golpeó
-        distancias = [res[2] * rango_max for res in resultados]
+ 
+        # hitFraction es fraccion del segmento inicio->fin
+        # distancia desde centro robot = OFFSET + frac * (rango_max - OFFSET)
+        distancias = [OFFSET + res[2] * (rango_max - OFFSET) for res in resultados]
  
         for i in range(num_rayos):
             color = [1, 0, 0] if distancias[i] < rango_max * 0.99 else [0, 1, 0]
-            lid = p.addUserDebugLine(origen, rayos_fin[i], color, lineWidth=1.5)
+            lid = p.addUserDebugLine(rayos_inicio[i], rayos_fin[i], color, lineWidth=1.5)
             self.lidar_ids.append(lid)
+ 
+        # Si el robot esta muy inclinado, devolver distancias cortas en todas
+        # direcciones para que el cerebro frene en lugar de acelerar
+        if inclinado:
+            distancias = [0.20] * num_rayos
  
         return distancias
  
@@ -147,12 +130,14 @@ class MundoSimulacion:
         giro = ordenes["fuerza_giro"]
         vel_izq = velocidad - giro
         vel_der = velocidad + giro
+ 
+        # --- FIX 4: fuerza reducida de 150->30 N para evitar volcado ---
         p.setJointMotorControlArray(
             self.robot,
             self.ruedas_izq + self.ruedas_der,
             p.VELOCITY_CONTROL,
             targetVelocities=[vel_izq, vel_izq, vel_der, vel_der],
-            forces=[50, 50, 50, 50]
+            forces=[30, 30, 30, 30]
         )
  
     # ------------------------------------------------------------------
