@@ -41,30 +41,11 @@ def imprimir_estado(distancias, estado, ordenes, pos_robot, dist_meta, tick, t_i
     print("=" * 56)
 
 
-def crear_marcadores():
-    vis_inicio = p.createVisualShape(p.GEOM_SPHERE, radius=0.15,
-                                     rgbaColor=[0.0, 1.0, 0.2, 0.85])
-    p.createMultiBody(baseMass=0, baseVisualShapeIndex=vis_inicio,
-                      basePosition=[INICIO[0], INICIO[1], 0.15])
-    p.addUserDebugText("INICIO", [INICIO[0], INICIO[1], 0.45],
-                       textColorRGB=[0, 1, 0], textSize=1.4)
-
-    vis_meta = p.createVisualShape(p.GEOM_SPHERE, radius=0.15,
-                                   rgbaColor=[1.0, 0.15, 0.1, 0.85])
-    p.createMultiBody(baseMass=0, baseVisualShapeIndex=vis_meta,
-                      basePosition=[META[0], META[1], 0.15])
-    p.addUserDebugText("META", [META[0], META[1], 0.45],
-                       textColorRGB=[1, 0.3, 0], textSize=1.4)
-
-    p.addUserDebugLine([INICIO[0], INICIO[1], 0.05],
-                       [META[0],   META[1],   0.05],
-                       lineColorRGB=[1, 1, 0], lineWidth=1.0)
 
 
 def iniciar_Todo():
     cerebro  = CerebroRobot()
     mi_mundo = MundoSimulacion()
-    crear_marcadores()
 
     print("Simulacion iniciada - Robot navegando de INICIO a META")
     print(f"  Inicio : {INICIO}  |  Meta: {META}\n")
