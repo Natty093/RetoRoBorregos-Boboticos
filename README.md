@@ -75,5 +75,6 @@ O `esq`
 ---
  
 ## Equipo
- 
+- Natalie
+- Leo
 Desarrollado para el **Reto Roborregos** — Tecnológico de Monterrey
