@@ -1,120 +1,100 @@
 from cerebro import CerebroRobot
 from plano import MundoSimulacion
+
 import pybullet as p
-import os
 import time
 
-INICIO = (3.2, -9.2)
-META   = (9.5, -0.7)
-RADIO_META = 0.35
-
-NOMBRES_RAYO = [
-    "IZQ-EXT", "IZQ-MED", "IZQ-CER",
-    "FRT-IZQ", "FRT-CEN", "FRT-DER",
-    "DER-CER", "DER-MED", "DER-EXT",
-]
+modo_pov = False
 
 
-def imprimir_estado(distancias, estado, ordenes, pos_robot, dist_meta, tick, t_inicio):
-    if tick % 30 != 0:
-        return
-    os.system("cls" if os.name == "nt" else "clear")
-    elapsed = time.time() - t_inicio
-    mm, ss = divmod(int(elapsed), 60)
-    print("=" * 56)
-    print("        ROBOT - NAVEGACION AUTONOMA EN LABERINTO")
-    print("=" * 56)
-    print(f"  Tiempo: {mm:02d}:{ss:02d}   Pos: ({pos_robot[0]:.2f}, {pos_robot[1]:.2f})")
-    print(f"  Distancia a la meta: {dist_meta:.2f} m")
-    print()
-    print("  LIDAR (distancias en metros):")
-    print()
-    for nombre, dist in zip(NOMBRES_RAYO, distancias):
-        barra   = int((dist / 1.5) * 22)
-        bloques = "X" * barra + "." * (22 - barra)
-        alerta  = " CERCA!" if dist < 0.28 else (" precaucion" if dist < 0.52 else "")
-        print(f"  {nombre:8s}  {bloques}  {dist:.2f} m{alerta}")
-    print()
-    estado_display = "** ESCAPE **" if estado == "_ESCAPE" else estado
-    print(f"  ESTADO:    {estado_display}")
-    print(f"  Velocidad: {ordenes['velocidad_motor']:>5.1f}   Giro: {ordenes['fuerza_giro']:>+6.1f}")
-    print("=" * 56)
+def actualizar_camara(mi_mundo):
 
+    pos, ori = p.getBasePositionAndOrientation(
+        mi_mundo.robot
+    )
 
+    matriz = p.getMatrixFromQuaternion(ori)
+
+    frente_x = matriz[0]
+    frente_y = matriz[1]
+
+    cam_x = pos[0]
+    cam_y = pos[1]
+    cam_z = pos[2] + 0.22
+
+    target_x = cam_x + frente_x * 2
+    target_y = cam_y + frente_y * 2
+    target_z = cam_z
+
+    view = p.computeViewMatrix(
+        [cam_x, cam_y, cam_z],
+        [target_x, target_y, target_z],
+        [0, 0, 1]
+    )
+
+    proj = p.computeProjectionMatrixFOV(
+        90,
+        1.6,
+        0.02,
+        30
+    )
+
+    p.getCameraImage(
+        640,
+        480,
+        view,
+        proj
+    )
 
 
 def iniciar_Todo():
-    cerebro  = CerebroRobot()
+
+    global modo_pov
+
+    cerebro = CerebroRobot()
+
     mi_mundo = MundoSimulacion()
 
-    print("Simulacion iniciada - Robot navegando de INICIO a META")
-    print(f"  Inicio : {INICIO}  |  Meta: {META}\n")
+    while True:
 
-    tick     = 0
-    t_inicio = time.time()
-    llego    = False
+        teclas = p.getKeyboardEvents()
 
-    try:
-        while True:
-            if not p.isConnected():
-                print("\nVentana cerrada. Saliendo.")
-                break
+        if (
+            ord('v') in teclas
+            and teclas[ord('v')] & p.KEY_WAS_TRIGGERED
+        ):
 
-            pos_robot, _ = p.getBasePositionAndOrientation(mi_mundo.robot)
-            dist_meta = ((pos_robot[0] - META[0])**2 +
-                         (pos_robot[1] - META[1])**2) ** 0.5
+            modo_pov = not modo_pov
 
-            # Llegada a la meta
-            if dist_meta < RADIO_META and not llego:
-                llego = True
-                elapsed = time.time() - t_inicio
-                mm, ss = divmod(int(elapsed), 60)
-                p.setJointMotorControlArray(
-                    mi_mundo.robot,
-                    mi_mundo.ruedas_izq + mi_mundo.ruedas_der,
-                    p.VELOCITY_CONTROL,
-                    targetVelocities=[0, 0, 0, 0],
-                    forces=[200, 200, 200, 200]
+            if not modo_pov:
+
+                p.resetDebugVisualizerCamera(
+                    cameraDistance=12,
+                    cameraYaw=0,
+                    cameraPitch=-60,
+                    cameraTargetPosition=[5, -5, 0]
                 )
-                p.addUserDebugText(f"LLEGO! {mm:02d}:{ss:02d}",
-                                   [META[0], META[1], 0.7],
-                                   textColorRGB=[1, 1, 0], textSize=2.0)
-                os.system("cls" if os.name == "nt" else "clear")
-                print("=" * 56)
-                print("  ** ROBOT LLEGO A LA META! **")
-                print(f"     Tiempo total: {mm:02d}:{ss:02d}")
-                print(f"     Posicion final: ({pos_robot[0]:.2f}, {pos_robot[1]:.2f})")
-                print("=" * 56)
-                print("\nPresiona Ctrl+C para cerrar.")
 
-            if llego:
-                mi_mundo.actualizar_fisicas()
-                continue
+        distancias = mi_mundo.simular_lidar()
 
-            # Ciclo normal — se pasa pos_robot al cerebro para detectar atasco
-            distancias_lidar = mi_mundo.simular_lidar()
-            cerebro.percibir_entorno(distancias_lidar, pos_robot=pos_robot)
-            ordenes_motor = cerebro.decidir_accion()
-            mi_mundo.mover_robot(ordenes_motor)
-            mi_mundo.actualizar_fisicas()
+        pos, _ = p.getBasePositionAndOrientation(
+            mi_mundo.robot
+        )
 
-            imprimir_estado(distancias_lidar, cerebro.estado, ordenes_motor,
-                            pos_robot, dist_meta, tick, t_inicio)
-            tick += 1
+        cerebro.percibir_entorno(
+            distancias,
+            pos_robot=pos
+        )
 
-    except KeyboardInterrupt:
-        print("\nSimulacion finalizada.")
-    except p.error as e:
-        print(f"\nPyBullet desconectado: {e}")
-    except Exception:
-        import traceback
-        traceback.print_exc()
-        input("Presiona Enter para cerrar...")
-    finally:
-        try:
-            p.disconnect()
-        except Exception:
-            pass
+        ordenes = cerebro.decidir_accion()
+
+        mi_mundo.mover_robot(ordenes)
+
+        mi_mundo.actualizar_fisicas()
+
+        if modo_pov:
+
+            actualizar_camara(mi_mundo)
 
 
 if __name__ == "__main__":
